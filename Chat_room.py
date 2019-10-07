@@ -32,18 +32,18 @@ class serverThread(threading.Thread):
         sock = self.sock
         while True:
             data = sock.recv(BUFSIZE).decode('UTF-8')
-            if data[0] == '/':
-                data = data.split()
-                if len(data)==2 and (data[0]=="/USER" or data[0]=="/user"):
-                    SOCKS[sock] = data[1]
+            args = data.split()
+            if data[0]=='/':
+                if len(args)==2 and args[0].lower()=="/user":
+                    SOCKS[sock] = args[1]
+                    print("User {} joined".format(args[1]))
                 else:
                     sock.sendall(b'error')
-            # TODO: search sock by get()
-            elif sock in SOCKS.values():
-                print(otherdata)
-                for otherSock, otherName in SOCKS.items():
-                    if otherSock != sock:
-                        otherSock.sendall(otherName+' : '+otherSock)
+            elif sock in SOCKS.keys():
+                print(SOCKS[sock], " : ", data)
+                for otherSocks in SOCKS.keys():
+                    if otherSocks != sock:
+                        otherSocks.sendall((SOCKS[sock]+" : "+data).encode('UTF-8'))
             else:
                 sock.sendall(b"Usage: /user <userName>")
         sock.close()
@@ -53,9 +53,7 @@ def server(host, port):
     listeningSock.bind((host, port))
     listeningSock.listen(1)
     while True:
-        print('Waiting to accept a new connection')
         sock, sockname = listeningSock.accept()
-        print('We have accepted a connection from', sockname)
         thread = serverThread(sock)
         thread.daemon = True
         thread.start()
