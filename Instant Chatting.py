@@ -6,13 +6,14 @@ REGISTRAR_PORT = 648
 EOF = 'oo'
 
 class threadRecv(threading.Thread):
-    def __init__(self, sock):
+    def __init__(self, sock, peerName):
         threading.Thread.__init__(self)
         self.sock = sock
+        self.peerName = peerName
     def run(self):
         while True:
             data = self.sock.recv(BUFSIZE)
-            print(">>", data.decode('UTF-8'))
+            print(self.peerName, ": ", data.decode('UTF-8'))
 
 class threadSend(threading.Thread):
     def __init__(self, sock):
@@ -42,17 +43,16 @@ def registrar(host, *args):
                 print(server['name'], tuple(server['address']), sep='\t')
         elif peerInfo['role'] == 'client':
             sock.sendall(json.dumps(servers).encode('UTF-8'))
-            #sock.recv(BUFSIZE)
         sock.close()
 
 def server(host, port):
-    print('Please input your name:')
+    print('Please input your name: ', end='')
     name = input()
     
     listeningSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listeningSock.bind((host, port))
     listeningSock.listen(1)
-    print("Listening at", listeningSock.getsockname())
+    print("\nListening at", listeningSock.getsockname())
     
     registerSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     registerSock.connect((host, REGISTRAR_PORT))
@@ -63,7 +63,9 @@ def server(host, port):
     
     sock, sockname = listeningSock.accept()
     print("We have accepted a connection from", sockname)
-    recv = threadRecv(sock)
+    clientName = sock.recv(BUFSIZE).decode('UTF-8')
+    
+    recv = threadRecv(sock, clientName)
     recv.start()
     send = threadSend(sock)
     send.start()
@@ -75,35 +77,36 @@ def server(host, port):
     listeningSock.close()
     
 def client(host, *args):
-    print('Please input your name:')
+    print('Please input your name: ', end='')
     name = input()
     getServers = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     getServers.connect((host, REGISTRAR_PORT))
     getServers.sendall(json.dumps({'role':'client'}).encode('UTF-8'))
     servers = json.loads(getServers.recv(BUFSIZE).decode('UTF-8'))
     index = 0
-    print("Online server:")
+    print("\nOnline server:")
     print("num", "name", "address", sep='\t')
     for server in servers:
         print(index, server['name'], tuple(server['address']), sep='\t')
         index += 1
     
-    print("Input server num to connect:", end=' ')
+    print("Input server number to connect: ", end='')
     while True:
-        select = input()
         try:
+            select = input()
             host, port = servers[int(select)]['address']
             serverName = servers[int(select)]['name']
             break
         except:
-            print("Please input currect number:", end=' ')
+            print("Wrong choice, please input currect number: ", end='')
             continue
     
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((host, port))
     print("Connected to", sock.getpeername())
+    sock.sendall(name.encode('UTF-8'))
     
-    recv = threadRecv(sock)
+    recv = threadRecv(sock, serverName)
     recv.start()
     send = threadSend(sock)
     send.start()
