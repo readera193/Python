@@ -1,8 +1,12 @@
 import argparse, socket
 import threading
-BUFSIZE = 80
+BUFSIZE = 150
 IRC_PORT = 6667
-SOCKS = {}
+SOCKS = {}      # {username=>sock}
+ERROR_MSG = "Incorrect command, usage of commands:\n"+\
+            "Set username/Rename: /user <username>\n"+\
+            "Get users who logged into the server: /who\n"+\
+            "Quit: /quit"
 
 class recvThread(threading.Thread):
     def __init__(self, sock):
@@ -29,37 +33,53 @@ class serverThread(threading.Thread):
     def __init__(self, sock):
         threading.Thread.__init__(self)
         self.sock = sock
+        self.username = None
     def run(self):
-        sock = self.sock
         # TODO: 使用者非使用指令離開/意外斷線時，需移除SOCKS內容
         while True:
-            data = sock.recv(BUFSIZE).decode('UTF-8')
-            args = data.split()
+            data = self.sock.recv(BUFSIZE).decode('UTF-8')
             if data[0]=='/':
-                if len(args)==2 and args[0].upper()=="/USER":
-                    if sock not in SOCKS.keys():
-                        print("User [{}\t] joined".format(args[1]))
+                args = data.split()
+                if args[0].lower()=="/user":
+                    self.setUsername(args)
+                elif args[0].lower()=="/who" and len(args)==1:
+                    if len(SOCKS) > 0:
+                        for username in SOCKS.keys():
+                            msg = "User [{}\t] is online\n".format(username)
+                            self.sock.sendall(msg.encode('UTF-8'))
                     else:
-                        print("User [{}\t] rename as [{}\t]".format(SOCKS[sock], args[1]))
-                    SOCKS[sock] = args[1]
-                elif len(args)==1 and args[0].upper()=="/WHO":
-                    for name in SOCKS.values():
-                        msg = "User [{}\t] is online".format(name)
-                        sock.sendall(msg.encode('UTF-8'))
-                elif len(args)==1 and args[0].upper()=="/QUIT":
-                    name = SOCKS.pop(sock)
-                    print("User [{}\t] left".format(name))
+                        self.sock.sendall(b"No user is online")
+                elif args[0].lower()=="/quit":
+                    self.userQuit()
                     break
                 else:
-                    sock.sendall(b'Incorrect command')
-            elif sock in SOCKS.keys():
-                print(SOCKS[sock], " : ", data)
-                for otherSocks in SOCKS.keys():
-                    if otherSocks != sock:
-                        otherSocks.sendall((SOCKS[sock]+" : "+data).encode('UTF-8'))
+                    self.sock.sendall(ERROR_MSG.encode('UTF-8'))
+            elif self.username != None:
+                print(self.username, " : ", data)
+                for otherSocks in SOCKS.values():
+                    if otherSocks != self.sock:
+                        otherSocks.sendall((self.username+" : "+data).encode('UTF-8'))
             else:
-                sock.sendall(b"Usage: /user <userName>")
-        sock.close()
+                self.sock.sendall(b"Please set yout username to chat, Usage: /user <userName>")
+        self.sock.close()
+    def setUsername(self, args):
+        if len(args) != 2:
+            self.sock.sendall(b"Incorrect command, Usage: /user <userName>")
+            return
+        if args[1] in SOCKS.keys():
+            self.sock.sendall(b"This username has already been used")
+            return
+        if self.username == None:
+            print("User [{}\t] joined".format(args[1]))
+        else:
+            print("User [{}\t] rename as [{}\t]".format(self.username, args[1]))
+            SOCKS.pop(self.username)
+        self.username = args[1]
+        SOCKS[self.username] = self.sock
+    def userQuit(self):
+        if self.username != None:
+            print("User [{}\t] left".format(self.username))
+            SOCKS.pop(self.username)
 
 def server(host, port):
     listeningSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -68,6 +88,7 @@ def server(host, port):
     print("Listening at", listeningSock.getsockname())
     while True:
         sock, sockname = listeningSock.accept()
+        sock.sendall(b"Please set yout username, Usage: /user <userName>")
         thread = serverThread(sock)
         thread.daemon = True
         thread.start()
