@@ -26,7 +26,7 @@ class sendThread(threading.Thread):
             msg = input()
             self.sock.sendall(msg.encode('UTF-8'))
             args = msg.split()
-            if len(args)==1 and args[0].upper()=="/QUIT":
+            if args[0].lower()=="/quit" and len(args)==1:
                 break
             
 class serverThread(threading.Thread):
@@ -49,7 +49,7 @@ class serverThread(threading.Thread):
                                 self.sock.sendall(msg.encode('UTF-8'))
                         else:
                             self.sock.sendall(b"No user is online")
-                    elif args[0].lower()=="/quit":
+                    elif args[0].lower()=="/quit" and len(args)==1:
                         self.userQuit()
                         break
                     else:
