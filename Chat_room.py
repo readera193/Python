@@ -2,6 +2,7 @@ import argparse, socket
 import threading
 BUFSIZE = 150
 IRC_PORT = 6667
+CODING = 'UTF-8'
 SOCKS = {}      # {username=>sock}
 ERROR_MSG = "Incorrect command, usage of commands:\n"+\
             "Set username/Rename: /user <username>\n"+\
@@ -15,7 +16,7 @@ class recvThread(threading.Thread):
     def run(self):
         while True:
             data = self.sock.recv(BUFSIZE)
-            print(data.decode('UTF-8'))
+            print(data.decode(CODING))
 
 class sendThread(threading.Thread):
     def __init__(self, sock):
@@ -24,8 +25,9 @@ class sendThread(threading.Thread):
     def run(self):
         while True:
             msg = input()
-            self.sock.sendall(msg.encode('UTF-8'))
+            self.sock.sendall(msg.encode(CODING))
             args = msg.split()
+            # 使用者輸入/quit指令時，結束thread
             if args[0].lower()=="/quit" and len(args)==1:
                 break
             
@@ -37,7 +39,7 @@ class serverThread(threading.Thread):
     def run(self):
         try:
             while True:
-                data = self.sock.recv(BUFSIZE).decode('UTF-8')
+                data = self.sock.recv(BUFSIZE).decode(CODING)
                 if data[0]=='/':
                     args = data.split()
                     if args[0].lower()=="/user":
@@ -46,22 +48,23 @@ class serverThread(threading.Thread):
                         if len(SOCKS) > 0:
                             for username in SOCKS.keys():
                                 msg = "User [{}\t] is online".format(username)
-                                self.sock.sendall(msg.encode('UTF-8'))
+                                self.sock.sendall(msg.encode(CODING))
                         else:
                             self.sock.sendall(b"No user is online")
                     elif args[0].lower()=="/quit" and len(args)==1:
                         self.userQuit()
                         break
                     else:
-                        self.sock.sendall(ERROR_MSG.encode('UTF-8'))
+                        self.sock.sendall(ERROR_MSG.encode(CODING))
                 elif self.username != None:
                     print(self.username, " : ", data)
                     for otherSocks in SOCKS.values():
                         if otherSocks != self.sock:
-                            otherSocks.sendall((self.username+" : "+data).encode('UTF-8'))
+                            otherSocks.sendall((self.username+" : "+data).encode(CODING))
                 else:
                     self.sock.sendall(b"Please set yout username to chat, Usage: /user <userName>")
         except ConnectionResetError:
+            # 使用者強制中斷
             self.userQuit()
         self.sock.close()
     def setUsername(self, args):
