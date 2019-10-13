@@ -5,6 +5,7 @@ BUFSIZE = 150
 REGISTRAR_PORT = 5060
 EOF = 'oo'
 CODING = 'UTF-8'
+# 目前只有client端發送"oo"或^c結束連線
 
 class threadRecv(threading.Thread):
     def __init__(self, sock, serverName):
@@ -32,16 +33,21 @@ def registrar(host, *args):
     registrarSock.listen(1)
     print("Listening at", registrarSock.getsockname())
     
+    # TODO: 改為每次accept都建立thread
     while True:
         sock, sockname = registrarSock.accept()
         peerInfo = sock.recv(BUFSIZE).decode(CODING)
         peerInfo = json.loads(peerInfo)
-        if peerInfo['role'] == 'server':
-            peerInfo.pop('role')
+        if peerInfo['command'] == 'register':
+            del peerInfo['command']
             servers.append(peerInfo)
             print("\nNew server {} registers as {}".format(peerInfo['name'], 
                   tuple(peerInfo['address'])))
-        elif peerInfo['role'] == 'client':
+        elif peerInfo['command'] == 'unregister':
+            del peerInfo['command']
+            servers.remove(peerInfo)
+            print("\nServer {} unregisters".format(peerInfo['name']))
+        elif peerInfo['command'] == 'client':
             sock.sendall(json.dumps(servers).encode(CODING))
         sock.close()
 
@@ -54,12 +60,15 @@ def server(host, port):
     listeningSock.listen(1)
     print("\nListening at", listeningSock.getsockname())
     
+    # register start
     registerSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     registerSock.connect((host, REGISTRAR_PORT))
-    registerInfo = {'role':'server','name':name, 'address':listeningSock.getsockname()}
+    registerInfo = {'command':'register','name':name, 'address':listeningSock.getsockname()}
     registerSock.sendall(json.dumps(registerInfo).encode(CODING))
     registerSock.close()
+    # register end
     
+    # client start
     sock, sockname = listeningSock.accept()
     print("We have accepted a connection from", sockname)
     clientName = sock.recv(BUFSIZE).decode(CODING)
@@ -68,21 +77,35 @@ def server(host, port):
     send.daemon = True
     send.start()
     
-    data = None
-    while data != EOF:
-        data = sock.recv(BUFSIZE).decode(CODING)
-        print(clientName, ": ", data)
+    try:
+        data = None
+        while data != EOF:
+            data = sock.recv(BUFSIZE).decode(CODING)
+            print(clientName, ": ", data)
+    except ConnectionResetError:
+        print("client端強制中止")
+    finally:
+        print("Your peer {} closes the connection.".format(sock.getpeername()))
+        sock.close()
+    # client end
     
-    print("Your peer {} closes the connection.".format(sock.getpeername()))
-    sock.close()
+    # unregister
+    unregisterSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    unregisterSock.connect((host, REGISTRAR_PORT))
+    unregisterInfo = {'command':'unregister','name':name, 'address':listeningSock.getsockname()}
+    unregisterSock.sendall(json.dumps(unregisterInfo).encode(CODING))
+    unregisterSock.close()
+    
     listeningSock.close()
     
 def client(host, *args):
     print('Please input your name: ', end='')
     name = input()
+    
+    # get&show server list
     getServers = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     getServers.connect((host, REGISTRAR_PORT))
-    getServers.sendall(json.dumps({'role':'client'}).encode(CODING))
+    getServers.sendall(json.dumps({'command':'client'}).encode(CODING))
     servers = json.loads(getServers.recv(BUFSIZE).decode(CODING))
     index = 1
     print("\nOnline server:")
@@ -112,12 +135,15 @@ def client(host, *args):
     recv.daemon = True
     recv.start()
     
-    msg = None
-    while msg != EOF:
-        msg = input()
-        sock.sendall(msg.encode(CODING))
-    
-    sock.close()
+    try:
+        msg = None
+        while msg != EOF:
+            msg = input()
+            sock.sendall(msg.encode(CODING))
+    except KeyboardInterrupt:
+        print("強制中止")
+    finally:
+        sock.close()
     
 if __name__ == '__main__':
     choices = {'client':client, 'server':server, 'registrar':registrar}
