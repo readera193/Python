@@ -2,12 +2,12 @@ import argparse, socket
 import threading
 import json
 BUFSIZE = 150
-REGISTRAR_PORT = 5060
+REGISTRAR_PORT = 8136
 EOF = 'oo'
 CODING = 'UTF-8'
 # 目前只有client端發送"oo"或^c結束連線
 
-class threadRecv(threading.Thread):
+class recvThread(threading.Thread):
     def __init__(self, sock, serverName):
         threading.Thread.__init__(self)
         self.sock = sock
@@ -17,7 +17,7 @@ class threadRecv(threading.Thread):
             data = self.sock.recv(BUFSIZE).decode(CODING)
             print(self.serverName, ": ", data)
 
-class threadSend(threading.Thread):
+class sendThread(threading.Thread):
     def __init__(self, sock):
         threading.Thread.__init__(self)
         self.sock = sock
@@ -33,7 +33,6 @@ def registrar(host, *args):
     registrarSock.listen(1)
     print("Listening at", registrarSock.getsockname())
     
-    # TODO: 改為每次accept都建立thread
     while True:
         sock, sockname = registrarSock.accept()
         peerInfo = sock.recv(BUFSIZE).decode(CODING)
@@ -47,7 +46,7 @@ def registrar(host, *args):
             del peerInfo['command']
             servers.remove(peerInfo)
             print("\nServer {} unregisters".format(peerInfo['name']))
-        elif peerInfo['command'] == 'client':
+        elif peerInfo['command'] == 'ask_server_list':
             sock.sendall(json.dumps(servers).encode(CODING))
         sock.close()
 
@@ -73,7 +72,7 @@ def server(host, port):
     print("We have accepted a connection from", sockname)
     clientName = sock.recv(BUFSIZE).decode(CODING)
     
-    send = threadSend(sock)
+    send = sendThread(sock)
     send.daemon = True
     send.start()
     
@@ -84,9 +83,9 @@ def server(host, port):
             print(clientName, ": ", data)
     except ConnectionResetError:
         print("client端強制中止")
-    finally:
-        print("Your peer {} closes the connection.".format(sock.getpeername()))
-        sock.close()
+    
+    print("Your peer {} closes the connection.".format(sock.getpeername()))
+    sock.close()
     # client end
     
     # unregister
@@ -105,7 +104,7 @@ def client(host, *args):
     # get&show server list
     getServers = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     getServers.connect((host, REGISTRAR_PORT))
-    getServers.sendall(json.dumps({'command':'client'}).encode(CODING))
+    getServers.sendall(json.dumps({'command':'ask_server_list'}).encode(CODING))
     servers = json.loads(getServers.recv(BUFSIZE).decode(CODING))
     index = 1
     print("\nOnline server:")
@@ -120,18 +119,17 @@ def client(host, *args):
             select = int(input()) - 1
             host, port = servers[select]['address']
             serverName = servers[select]['name']
+            break
         except (IndexError, ValueError):
             print("Wrong choice, please input currect number: ", end='')
             continue
-        else:
-            break
     
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((host, port))
     print("Connected to", sock.getpeername())
     sock.sendall(name.encode(CODING))
     
-    recv = threadRecv(sock, serverName)
+    recv = recvThread(sock, serverName)
     recv.daemon = True
     recv.start()
     
@@ -142,8 +140,8 @@ def client(host, *args):
             sock.sendall(msg.encode(CODING))
     except KeyboardInterrupt:
         print("強制中止")
-    finally:
-        sock.close()
+    
+    sock.close()
     
 if __name__ == '__main__':
     choices = {'client':client, 'server':server, 'registrar':registrar}
