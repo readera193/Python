@@ -1,9 +1,9 @@
 import argparse, socket
 import threading
 import json
-BUFSIZE = 150
+BUFSIZE = 80
 REGISTRAR_PORT = 8136
-EOF = 'oo'
+EOF = "oo"
 CODING = 'UTF-8'
 # 目前只有client端發送"oo"或^c結束連線
 
@@ -27,7 +27,7 @@ class sendThread(threading.Thread):
             self.sock.sendall(msg.encode(CODING))
 
 def registrar(host, *args):
-    servers = [];
+    serverList = [];
     registrarSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     registrarSock.bind((host, REGISTRAR_PORT))
     registrarSock.listen(1)
@@ -39,15 +39,19 @@ def registrar(host, *args):
         peerInfo = json.loads(peerInfo)
         if peerInfo['command'] == 'register':
             del peerInfo['command']
-            servers.append(peerInfo)
+            serverList.append(peerInfo)
             print("\nNew server {} registers as {}".format(peerInfo['name'], 
                   tuple(peerInfo['address'])))
         elif peerInfo['command'] == 'unregister':
             del peerInfo['command']
-            servers.remove(peerInfo)
+            serverList.remove(peerInfo)
             print("\nServer {} unregisters".format(peerInfo['name']))
         elif peerInfo['command'] == 'ask_server_list':
-            sock.sendall(json.dumps(servers).encode(CODING))
+            sock.sendall(json.dumps(len(serverList)).encode(CODING))
+            for server in serverList:
+                # 避免連續傳送
+                sock.recv(BUFSIZE)
+                sock.sendall(json.dumps(server).encode(CODING))
         sock.close()
 
 def server(host, port):
@@ -75,7 +79,6 @@ def server(host, port):
     send = sendThread(sock)
     send.daemon = True
     send.start()
-    
     try:
         data = None
         while data != EOF:
@@ -102,37 +105,42 @@ def client(host, *args):
     name = input()
     
     # get&show server list
-    getServers = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    getServers.connect((host, REGISTRAR_PORT))
-    getServers.sendall(json.dumps({'command':'ask_server_list'}).encode(CODING))
-    servers = json.loads(getServers.recv(BUFSIZE).decode(CODING))
-    index = 1
+    getServerList = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    getServerList.connect((host, REGISTRAR_PORT))
+    getServerList.sendall(json.dumps({'command':'ask_server_list'}).encode(CODING))
     print("\nOnline server:")
     print("num", "name", "address", sep='\t')
-    for server in servers:
+    server_num = json.loads(getServerList.recv(BUFSIZE).decode(CODING))
+    serverList = []
+    for index in range(1, server_num+1):
+        # 避免接收太多資料
+        getServerList.sendall(b"start")
+        server = json.loads(getServerList.recv(BUFSIZE).decode(CODING))
         print(index, server['name'], tuple(server['address']), sep='\t')
-        index += 1
+        serverList.append(server)
     
+    # select server
     print("Input server number to connect: ", end='')
     while True:
         try:
             select = int(input()) - 1
-            host, port = servers[select]['address']
-            serverName = servers[select]['name']
+            host, port = serverList[select]['address']
+            serverName = serverList[select]['name']
             break
         except (IndexError, ValueError):
             print("Wrong choice, please input currect number: ", end='')
             continue
     
+    # connect server
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((host, port))
     print("Connected to", sock.getpeername())
     sock.sendall(name.encode(CODING))
     
+    # receive thread & send loop
     recv = recvThread(sock, serverName)
     recv.daemon = True
     recv.start()
-    
     try:
         msg = None
         while msg != EOF:
