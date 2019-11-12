@@ -1,6 +1,6 @@
 import argparse, socket
 import threading
-import pickle
+import logging
 BUFSIZE = 80
 EOF = 'oo'
 
@@ -44,14 +44,12 @@ def server(host, srvPort):
         background.start()
         while True:
             data = sock.recv(BUFSIZE)
-            if not data:
-                break
-            else:
-                showData( data )
+            logging.debug(data)
+            showData( data )
+    except ConnectionResetError:
         print('Your peer {} closes the connection.'.format(sock.getpeername() ))
-        sock.close()
-    except KeyboardInterrupt:
-        pass
+    
+    sock.close()
     listeningSock.close()
 
 def client(host, port): # parameter srvPort becomes useless
@@ -73,6 +71,9 @@ def client(host, port): # parameter srvPort becomes useless
     sock.close()
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='[%(levelname)s] (%(threadName)-10s) %(message)s',)
     choices = {'client': client, 'server': server, }
     parser = argparse.ArgumentParser(description='Chat over TCP')
     parser.add_argument('role', choices=choices, help='which role to play')
