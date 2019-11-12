@@ -1,23 +1,32 @@
 import argparse, socket
 import threading
-import pickle
+import logging
 BUFSIZE = 80
 EOF = 'oo'
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='[%(levelname)s] (%(threadName)-10s) %(message)s',)
+flagToExit = threading.Event()
 
 def getInput():
     return input()
 
 def showData(d):
-    print('>>', d.decode('UTF-8') ) # align with getInput()
+    print('>>', d) # align with getInput()
 
 class AsyncRecv(threading.Thread):
     def __init__(self, sock):
         threading.Thread.__init__(self)
         self.sock = sock
     def run(self):
-        while True:
-            data = self.sock.recv(BUFSIZE)
-            showData(data)
+        try:
+            while True:
+                data = self.sock.recv(BUFSIZE).decode('UTF-8')
+                showData(data)
+        except ConnectionResetError:
+            print('Your peer {} closes the connection.'.format(self.sock.getpeername() ))
+            print('Input anything to exit.')
+            flagToExit.set()
 
 class AsyncSend(threading.Thread):
     def __init__(self, sock):
@@ -25,8 +34,24 @@ class AsyncSend(threading.Thread):
         self.sock = sock
     def run(self):
         while True:
-            data = getInput()
-            self.sock.send( data.encode('UTF-8') )
+            msg = getInput()
+            if flagToExit.is_set():
+                break
+            if msg==EOF:
+                print('I close the socket')
+                break
+            else:
+                self.sock.send( msg.encode('UTF-8') )
+
+def createThreads(sock):
+    sendThread = AsyncSend(sock)
+    recvThread = AsyncRecv(sock)
+    sendThread.daemon = True
+    recvThread.daemon = True
+    sendThread.start()
+    recvThread.start()
+
+    sendThread.join()
 
 def server(host, srvPort):
     listeningSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -34,24 +59,13 @@ def server(host, srvPort):
     listeningSock.listen(1)
     print("Listening at", listeningSock.getsockname() )
 
-    try:
-        print("Waiting for incoming calls ...")
-        sock, sockname = listeningSock.accept()
-        print('We have accepted a connection from', sockname)
+    print("Waiting for incoming calls ...")
+    sock, sockname = listeningSock.accept()
+    print('We have accepted a connection from', sockname)
 
-        background = AsyncSend(sock)
-        background.daemon = True
-        background.start()
-        while True:
-            data = sock.recv(BUFSIZE)
-            if not data:
-                break
-            else:
-                showData( data )
-        print('Your peer {} closes the connection.'.format(sock.getpeername() ))
-        sock.close()
-    except KeyboardInterrupt:
-        pass
+    createThreads(sock)
+    sock.close()
+    
     listeningSock.close()
 
 def client(host, port): # parameter srvPort becomes useless
@@ -60,16 +74,7 @@ def client(host, port): # parameter srvPort becomes useless
     sock.connect( (host, port) )
     print('Connected to', sock.getpeername() )
 
-    background = AsyncRecv(sock)
-    background.daemon = True
-    background.start()
-    while True:
-        msg = getInput()
-        if msg == EOF:
-            break
-        else:
-            sock.send( msg.encode('UTF-8') )
-    print('I close the socket')
+    createThreads(sock)
     sock.close()
 
 if __name__ == '__main__':
