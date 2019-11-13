@@ -25,7 +25,6 @@ class AsyncRecv(threading.Thread):
                 showData(data)
         except ConnectionResetError:
             print('Your peer {} closes the connection.'.format(self.sock.getpeername() ))
-            print('Input anything to exit.')
             flagToExit.set()
 
 class AsyncSend(threading.Thread):
@@ -35,15 +34,17 @@ class AsyncSend(threading.Thread):
     def run(self):
         while True:
             msg = getInput()
-            if flagToExit.is_set():
-                break
             if msg==EOF:
                 print('I close the socket')
+                flagToExit.set()
                 break
             else:
                 self.sock.send( msg.encode('UTF-8') )
 
-def createThreads(sock):
+def waiting():
+    flagToExit.wait()
+
+def threads(sock):
     sendThread = AsyncSend(sock)
     recvThread = AsyncRecv(sock)
     sendThread.daemon = True
@@ -51,7 +52,10 @@ def createThreads(sock):
     sendThread.start()
     recvThread.start()
 
-    sendThread.join()
+    # 當 send/recv set flag, 結束主程式
+    waitFlag = threading.Thread(target=waiting, daemon=True)
+    waitFlag.start()
+    waitFlag.join()
 
 def server(host, srvPort):
     listeningSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -63,7 +67,7 @@ def server(host, srvPort):
     sock, sockname = listeningSock.accept()
     print('We have accepted a connection from', sockname)
 
-    createThreads(sock)
+    threads(sock)
     sock.close()
     
     listeningSock.close()
@@ -74,7 +78,7 @@ def client(host, port): # parameter srvPort becomes useless
     sock.connect( (host, port) )
     print('Connected to', sock.getpeername() )
 
-    createThreads(sock)
+    threads(sock)
     sock.close()
 
 if __name__ == '__main__':
