@@ -41,9 +41,6 @@ class AsyncSend(threading.Thread):
             else:
                 self.sock.send( msg.encode('UTF-8') )
 
-def waiting():
-    flagToExit.wait()
-
 def threads(sock):
     sendThread = AsyncSend(sock)
     recvThread = AsyncRecv(sock)
@@ -51,11 +48,8 @@ def threads(sock):
     recvThread.daemon = True
     sendThread.start()
     recvThread.start()
-
     # 當 send/recv set flag, 結束主程式
-    waitFlag = threading.Thread(target=waiting, daemon=True)
-    waitFlag.start()
-    waitFlag.join()
+    flagToExit.wait()
 
 def server(host, srvPort):
     listeningSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
