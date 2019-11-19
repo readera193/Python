@@ -12,58 +12,48 @@ def main():
     print(aList)
     a, b = multiprocessing.Pipe()
     p = multiprocessing.Process(target=mergeSort, args=(b,))
-    a.send((aList, 0, N))
+
+    a.send(aList)
     p.start()
     p.join()
     bList = a.recv()
     print(bList)
     
 def mergeSort(connect):
-    array, left, right = connect.recv()
-    connect.send((array, left, right))
-    if left >= right:
+    array = connect.recv()
+    if len(array)<=1:
         connect.send(array)
         return
     
-    import math
-    mid = math.floor( (left+right)/2 )
+    mid = len(array) // 2
     a, b = multiprocessing.Pipe()
     procLeft = multiprocessing.Process(target=mergeSort, args=(b,))
-    a.send((array, left, mid))
+    a.send(array[:mid])
     procLeft.start()
     arrayLeft = a.recv()
     
     c, d = multiprocessing.Pipe()
     procRight = multiprocessing.Process(target=mergeSort, args=(d,))
-    c.send((array, mid, right))
+    c.send(array[mid:])
     procRight.start()
     arrayRight = c.recv()
     
-    procLeft.join()
-    procRight.join()
+    connect.send( merge(arrayLeft, arrayRight) )
     
-    return merge(arrayLeft, arrayRight)
     
 def merge(arrayLeft, arrayRight):
     result = []
-    i=j=0
-    while (i<len(arrayLeft) and j<len(arrayRight)):
-        if arrayLeft[i] <= arrayRight[j]:
-            result.append(arrayLeft[i])
-            i+=1
+    while arrayLeft and arrayRight:
+        if arrayLeft[0] <= arrayRight[0]:
+            result.append(arrayLeft.pop(0))
         else:
-            result.append(arrayRight[j])
-            j+=1
-    while i<len(arrayLeft):
-        result.append(arrayLeft[i])
-        i+=1
-    while j<len(arrayRight):
-        result.append(arrayRight[j])
-        j+=1
+            result.append(arrayRight.pop(0))
+    if arrayLeft:
+        result += arrayLeft
+    if arrayRight:
+        result += arrayRight
     return result
     
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='[%(levelname)s] (%(threadName)-10s) %(message)s',)
+    multiprocessing.log_to_stderr(logging.ERROR)
     main()
