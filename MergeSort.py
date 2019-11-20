@@ -1,5 +1,6 @@
 import multiprocessing
 import logging
+import time
 
 def main():
     import sys
@@ -10,15 +11,21 @@ def main():
         N = 8
     aList = [randint(1, N*N) for i in range(N)]
     print(aList)
+    
+    timeStart = time.time()
+    
     a, b = multiprocessing.Pipe()
     p = multiprocessing.Process(target=mergeSort, args=(b,))
-
     a.send(aList)
     p.start()
     p.join()
     bList = a.recv()
-    print(bList)
     
+    timeEnd = time.time()
+    
+    print(bList)
+    print("Time cost: %f sec" % (timeEnd-timeStart))
+
 def mergeSort(connect):
     array = connect.recv()
     if len(array)<=1:
@@ -39,8 +46,7 @@ def mergeSort(connect):
     arrayRight = c.recv()
     
     connect.send( merge(arrayLeft, arrayRight) )
-    
-    
+
 def merge(arrayLeft, arrayRight):
     result = []
     while arrayLeft and arrayRight:
@@ -53,7 +59,7 @@ def merge(arrayLeft, arrayRight):
     if arrayRight:
         result += arrayRight
     return result
-    
+
 if __name__ == '__main__':
     multiprocessing.log_to_stderr(logging.ERROR)
     main()
