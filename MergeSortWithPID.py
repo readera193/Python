@@ -19,17 +19,18 @@ def main():
     a.send(aList)
     p.start()
     p.join()
-    bList = a.recv()
+    bList, PIDs = a.recv()
     
     timeEnd = time.time()
     
     print(bList)
+    print(len(PIDs), "processes were created:", PIDs)
     print("Time cost: %f sec" % (timeEnd-timeStart))
 
 def mergeSort(connect):
     array = connect.recv()
     if len(array)<=1:
-        connect.send(array)
+        connect.send((array, []))
         return
     
     mid = len(array) // 2
@@ -37,15 +38,16 @@ def mergeSort(connect):
     procLeft = multiprocessing.Process(target=mergeSort, args=(b,))
     a.send(array[:mid])
     procLeft.start()
-    arrayLeft = a.recv()
+    arrayLeft, PIDsLeft = a.recv()
     
     c, d = multiprocessing.Pipe()
     procRight = multiprocessing.Process(target=mergeSort, args=(d,))
     c.send(array[mid:])
     procRight.start()
-    arrayRight = c.recv()
+    arrayRight, PIDsRight = c.recv()
     
-    connect.send( merge(arrayLeft, arrayRight) )
+    mergeResult = merge(arrayLeft, arrayRight)
+    connect.send((mergeResult, [procLeft.pid, *PIDsLeft, procRight.pid, *PIDsRight]))
 
 def merge(arrayLeft, arrayRight):
     result = []
