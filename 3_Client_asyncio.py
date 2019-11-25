@@ -1,4 +1,4 @@
-import argparse, socket, threading
+import argparse, socket, asyncio
 
 def client(host, port):
     info = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)[0]
@@ -11,26 +11,35 @@ def client(host, port):
 
 def server(host, port):
     global sum
-    info = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)[0]
-    listeningSock = socket.socket( *info[0:3] )
-    listeningSock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    listeningSock.bind( info[4] )
-    listeningSock.listen(1)
-    print("Listening at", info[4])
+    address = (args.host, args.p)
+    loop = asyncio.get_event_loop()
+    coro = asyncio.start_server(server_1, *address)
+    loop.run_until_complete(coro)
+    print('Listening at {}'.format(address))
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        print('Stopping server')
+    finally:
+        loop.close()
 
-    socklist = []
-    for i in range(3):
-        sock, sockname = listeningSock.accept()
-        print("Connecting from", sockname)
-        server_1(sock)
-        socklist.append(sock)
-        sock.close()
-    print(sum)
-
-def server_1(s):
+async def server_1(reader, writer):
     global sum
-    for i in range(3):
-        data = s.recv(1)
+    address = writer.get_extra_info('peername')
+    print('Accepted connection from {}'.format(address))
+    while True:
+        data = b''
+        
+        more_data = await reader.read(1)
+        if not more_data:
+            if data:
+                print('Client {} sent {!r} but then closed'
+                      .format(address, data))
+            else:
+                print('Client {} closed socket normally'.format(address))
+            return
+        data += more_data
+        
         n = int(data.decode())
         print("{} + {}".format( sum, n), end='')
         sum += n
