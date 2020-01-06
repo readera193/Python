@@ -1,9 +1,49 @@
 import argparse, socket
 import struct
 import sys
+import threading
 BUFSIZE = 150
 CODING = 'UTF-8'
+
+class sendThread(threading.Thread):
+    def __init__(self, sock):
+        threading.Thread.__init__(self)
+        self.sock = sock
+    def run(self):
+        import random
+        sendSock, sockname = self.sock.accept()
+        data = struct.pack("!H", random.randint(1000,9999))
+        sendSock.sendall(data)
+        sendSock.close()
+
+def server(host, port):
+    listeningSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listeningSock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listeningSock.bind((host, port))
+    listeningSock.listen(1)
+    print('Listening at', listeningSock.getsockname())
     
+    while True:
+        print('Waiting to accept a new connection')
+        sock, sockname = listeningSock.accept()
+        print('We have accepted a connection from', sockname)
+        
+        ports = []
+        for i in range(4):
+            threadSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            threadSock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            threadSock.bind((host, 0))
+            threadSock.listen(1)
+            ports.append(threadSock.getsockname()[1])
+            
+            send = sendThread(threadSock)
+            send.daemon = True
+            send.start()
+        
+        data = struct.pack("!4H", *ports)
+        sock.sendall(data)
+        sock.close()
+
 def client(host, port):
     sock = connect_to(host, port)
     
@@ -17,6 +57,7 @@ def client(host, port):
             sock = connect_to(host, num)
             data = sock.recv(2)
             print("Receiving {} from exam.ipv6.club.tw:{}".format(struct.unpack("!H", data)[0], num))
+            sock.close()
     except AttributeError:
         pass
     
@@ -41,30 +82,14 @@ def connect_to(hostname_or_ip, port):
     else:
         return sock
 
-def server(host, port):
-    numbers = (6666, 7777, 8888, 9999)
-    
-    listeningSock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-    listeningSock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    listeningSock.bind((host, port))
-    listeningSock.listen(1)
-    print('Listening at', listeningSock.getsockname())
-    
-    while True:
-        print('Waiting to accept a new connection')
-        sock, sockname = listeningSock.accept()
-        print('We have accepted a connection from', sockname)
-        data = struct.pack("!4H", *numbers)
-        sock.sendall(data)
-
 if __name__ == '__main__':
     choices = {'client':client, 'server':server}
     parser = argparse.ArgumentParser(description='Chat over TCP')
     parser.add_argument('role', choices=choices, help='which role to play')
     parser.add_argument('host', help='interface the server listens at;'
                         ' host the client sends to')
-    parser.add_argument('-p', metavar='PORT', type=int, default=1060,
-                        help='TCP port (default 6667)')
+    parser.add_argument('-p', metavar='PORT', type=int, default=5588,
+                        help='TCP port (default 5588)')
     args = parser.parse_args()
     function = choices[args.role]
     function(args.host, args.p)
