@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 # 簡易選課系統
-from tkinter import *
+import tkinter as tk
 from tkinter import messagebox
-import random
 
 def check():
     if (sel.size()<4 or 6<sel.size()):
@@ -47,7 +43,7 @@ def itemSelected(event):
         if (conflict == 0):
             for i in range(course[2], course[3]+1):
                 sched[course[1]][i] = index         # 加入課表
-            sel.insert(END, sub.get(index))         # 加入清單
+            sel.insert(tk.END, sub.get(index))         # 加入清單
             mySub.append(index)                     # delete 要用
         else:
             messagebox.showerror("衝堂錯誤", "選擇的課程與目前課表衝堂，請調整課表或選擇其他課程")
@@ -57,7 +53,7 @@ def itemSelected(event):
             sched[course[1]][i] = -1
         sel.delete(index)
 
-root = Tk()
+root = tk.Tk()
 root.title("1106108136")
 root.protocol("WM_DELETE_WINDOW", exit)
 
@@ -86,24 +82,24 @@ subList = [["國文(一)", 1, 2, 4],
 mySub = []                                      # 已加入的課程，delete 要用
 
 # 兩個 list
-frm = Frame(root)
+frm = tk.Frame(root)
 frm.pack()
 
-scrSub = Scrollbar(frm)
-sub = Listbox(frm, yscrollcommand=scrSub.set)   # subject, 可選的課程
+scrSub = tk.Scrollbar(frm)
+sub = tk.Listbox(frm, yscrollcommand=scrSub.set)   # subject, 可選的課程
 for item in subList:
-    sub.insert(END, item[0]+str(item[2])+"～"+str(item[3]))
+    sub.insert(tk.END, item[0]+str(item[2])+"～"+str(item[3]))
 sub.bind("<<ListboxSelect>>", itemSelected)
 scrSub.config(command=sub.yview)
 
-sel = Listbox(frm)                              # selected, 學生選擇的課程
+sel = tk.Listbox(frm)                              # selected, 學生選擇的課程
 sel.bind("<<ListboxSelect>>", itemSelected)
 
-sub.pack(side=LEFT)
-scrSub.pack(side=LEFT, fill=Y)
-sel.pack(side=LEFT)
+sub.pack(side=tk.LEFT)
+scrSub.pack(side=tk.LEFT, fill=tk.Y)
+sel.pack(side=tk.LEFT)
 
-enter = Button(root, text="Enter", font=("Helvetic", 20, "bold"), command=check)
+enter = tk.Button(root, text="Enter", font=("Helvetic", 20, "bold"), command=check)
 enter.pack()
 
 root.mainloop()

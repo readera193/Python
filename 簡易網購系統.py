@@ -1,13 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
-
-
 # 簡易網購系統
-from tkinter import *
-from tkinter import messagebox
-import random
+import tkinter as tk
 
 def itemSelected(event):
     global cateStr
@@ -30,7 +25,7 @@ def itemSelected(event):
                 break
         if (selected == -1):                    # 沒選過
             sc.append([cateStr, menuStr, 1])
-            scLb.insert(END, menuStr+" * 1")    # "商品 * 數量"
+            scLb.insert(tk.END, menuStr+" * 1")    # "商品 * 數量"
         else:
             sc[selected][2] += 1
             scLb.delete(selected)
@@ -56,7 +51,7 @@ def check():
     print("總價:", total)
     root.destroy()
 
-root = Tk()
+root = tk.Tk()
 root.title("1106108136")
 
 # Category 分類
@@ -70,29 +65,29 @@ cate = {"家具":{"沙發":4000, "辦公桌":3000, "小板凳":300, "餐桌":349
 # shopping cart
 sc = []                                         # sc[n][0]_第n筆分類, sc[n][1]_商品, sc[n][2]_數量
 
-frm = Frame(root)
+frm = tk.Frame(root)
 frm.pack()
 
-cateLb = Listbox(frm)
+cateLb = tk.Listbox(frm)
 for item in list(cate):                         # list(cate) 只包含 keys 的陣列, 題目附註
-    cateLb.insert(END, item)
+    cateLb.insert(tk.END, item)
 cateLb.selection_set(0)                         # 要預設分類
 cateStr = list(cate)[0]                         # cateStr_當前選擇的 Category, list(cate)_蒐集 keys 組成 list
 cateLb.bind("<<ListboxSelect>>", itemSelected)
 
-menuVar = StringVar()                           # StringVar() 可 set tuple, 題目附註
+menuVar = tk.StringVar()                           # StringVar() 可 set tuple, 題目附註
 menuVar.set(tuple(cate[cateStr]))
-menuLb = Listbox(frm, listvariable = menuVar)   # listvariable, 題目附註
+menuLb = tk.Listbox(frm, listvariable = menuVar)   # listvariable, 題目附註
 menuLb.bind("<<ListboxSelect>>", itemSelected)
 
-scLb = Listbox(frm)
+scLb = tk.Listbox(frm)
 scLb.bind("<<ListboxSelect>>", itemSelected)
 
-enter = Button(root, text="Enter", font=("Helvetic", 20, "bold"), command=check)
+enter = tk.Button(root, text="Enter", font=("Helvetic", 20, "bold"), command=check)
 
-cateLb.pack(side=LEFT)
-menuLb.pack(side=LEFT)
-scLb.pack(side=LEFT)
+cateLb.pack(side=tk.LEFT)
+menuLb.pack(side=tk.LEFT)
+scLb.pack(side=tk.LEFT)
 enter.pack()
 
 root.mainloop()

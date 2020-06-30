@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 # 色塊遊戲
-from tkinter import *
+import tkinter as tk
 import random
 
 level = 1                                       # 遊戲等級
@@ -21,7 +18,7 @@ def key(event):
         if (keyIn.upper() in row):
             flag = 1
     if (not flag):
-        btn_start.config(state=NORMAL)
+        btn_start.config(state=tk.NORMAL)
         root.unbind("<Key>")
         var.set("請輸入視窗內字符或切換輸入法")
     elif (keyIn == keys[keyX][keyY] or
@@ -30,14 +27,14 @@ def key(event):
         level += 1
         game()
     else:
-        btn_start.config(state=NORMAL)
+        btn_start.config(state=tk.NORMAL)
         root.unbind("<Key>")                    # 避免遊戲結束後玩家又按按鍵
         var.set("GameOver, Answer: "+keys[keyX][keyY]+" , Final Score:"+str(level-1))
 
 def start():
     global level
     root.bind("<Key>", key)
-    btn_start.config(state=DISABLED)
+    btn_start.config(state=tk.DISABLED)
     level = 1
     game()
 
@@ -55,12 +52,12 @@ def game():
         labels[keyX][keyY].config(bg="#{:0>2x}{:0>2x}{:0>2x}".format(RGB[0], RGB[1], RGB[2]))   # 附函式解說
         var.set("Score:"+str(level-1))
     else:
-        btn_start.config(state=NORMAL)
+        btn_start.config(state=tk.NORMAL)
         root.unbind("<Key>")
         var.set("恭喜通關")
 
-root = Tk()
-root.title("1106108136")
+root = tk.Tk()
+root.title("196")
 
 # 遊戲介面
 keys = [["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
@@ -70,16 +67,16 @@ labels = []
 for i in range(3):
     labels.append([])
     for j in range(10):
-        labels[i].append(Label(root, text=keys[i][j], relief="groove",
+        labels[i].append(tk.Label(root, text=keys[i][j], relief="groove",
                                height=2, width=4, font=("Helvetic", 30, "bold")))
         labels[i][j].grid(row=i, column=j)
 
-btn_start = Button(root, text="Start", font=("Helvetic", 20, "bold"), command=start)              # 開始遊戲
-btn_start.grid(row=3, column=0, sticky=N+W+E+S)
+btn_start = tk.Button(root, text="Start", font=("Helvetic", 20, "bold"), command=start)              # 開始遊戲
+btn_start.grid(row=3, column=0, sticky=tk.N+tk.W+tk.E+tk.S)
 
 # 記分板
-var = StringVar()
-score = Label(root, textvariable=var, font=("Helvetic", 30, "bold"))
+var = tk.StringVar()
+score = tk.Label(root, textvariable=var, font=("Helvetic", 30, "bold"))
 score.grid(row=3, column=1, columnspan=8)
 
 root.mainloop()
