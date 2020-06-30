@@ -9,3 +9,9 @@
 
 # 網際網路協定
 與網際網路協定相關的小程式
+
+# 5v5
+League of Legends client 開啟後，執行 5v5.py 可建立 5v5 訓練模式
+
+# tic-tac-toe
+與人工智慧玩井字遊戲，使用 minimax algorithm 搭配 alpha-beta pruning。
