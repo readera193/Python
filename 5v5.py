@@ -1,9 +1,15 @@
 import requests
 import json
+import os
+import traceback
 
-if __name__ == '__main__':
-    location = r'C:\Garena\Games\32775\LeagueClient\lockfile'
-    config = json.dumps({
+# Ignore InsecureRequestWarning
+import requests.packages.urllib3
+requests.packages.urllib3.disable_warnings()
+
+def main():
+    lockfile_location = r'C:\Garena\Games\32775\LeagueClient\lockfile'
+    lobby_json = json.dumps({
         "customGameLobby": {
             "configuration": {
                 "gameMode": "PRACTICETOOL",
@@ -22,13 +28,21 @@ if __name__ == '__main__':
         "isCustom": True,
     })
     try:
-        lockfile = open(location, 'r')
-        data = lockfile.readline().split(':')
-        port, token, protocol = data[2:]
+        with open(lockfile_location, 'r') as lockfile:
+            data = lockfile.readline().split(':')
+            port, token, protocol = data[2:]
+            url = r'https://riot:{}@127.0.0.1:{}/lol-lobby/v2/lobby'.format(token, port)
+            requests.post(url, data=lobby_json, verify=False)
     except FileNotFoundError:
-        print('Please open lol client')
+        print('找不到 lockfile 檔案，請開啟 lol 客戶端')
+    except Exception:
+        print('不明的程式中斷')
+        traceback.print_exc()
     else:
-        url = r'{}://riot:{}@127.0.0.1:{}/lol-lobby/v2/lobby'.format(protocol, token, port)
-        response = requests.post(url, data=config, verify=False)
+        print('執行成功')
+        return
     finally:
-        input('Press Enter to exit')
+        os.system('pause')
+
+if __name__ == '__main__':
+    main()
