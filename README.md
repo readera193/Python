@@ -10,6 +10,12 @@
 # 英雄聯盟 5v5 訓練模式
 League of Legends client 開啟後，執行 5v5.py 可建立 5v5 訓練模式
 
+# shopee、amazon 爬蟲
+shopee 爬蟲  
+![shopee 爬蟲](docs/shopee.jpg)
+amazon 爬蟲  
+![amazon 爬蟲](docs/amazon.jpg)
+
 # 簡易選課系統
 有檢查課堂時間是否衝突機制，選課完畢後輸出選課結果，詳見[簡易選課系統](https://drive.google.com/file/d/1Phw8q_tNvmk4RwxE4TlnysdbiyE0AsnD/view?usp=sharing)
 
